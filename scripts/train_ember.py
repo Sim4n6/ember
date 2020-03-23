@@ -5,6 +5,8 @@ import json
 import ember
 import pickle
 import argparse
+import matplotlib.pyplot as plt
+import lightgbm as lgb
 
 
 def main():
@@ -27,15 +29,18 @@ def main():
         print("Creating vectorized features")
         ember.create_vectorized_features(args.datadir, args.featureversion)
 
+    #feature_name = ['feature_' + str(col) for col in range(num_feature)]
+
     params = {
         "boosting": "gbdt",
-        "objective": "binary",
+        "objective": "regression",
         "num_iterations": 1000,
         "learning_rate": 0.05,
         "num_leaves": 2048,
         "max_depth": 15,
         "min_data_in_leaf": 50,
-        "feature_fraction": 0.5
+        "feature_fraction": 0.5,
+        "num_threads": 2,
     }
     if args.optimize:
         params = ember.optimize_model(args.datadir)
@@ -44,13 +49,20 @@ def main():
 
     print("Training Classifier model")   
     lgbm_model = ember.train_model(args.datadir, params, args.featureversion)
-    #lgbm_model.save_model(os.path.join(args.datadir, "model.txt"))
-    # Save to file in the current working directory
-    pkl_filename = os.path.join(args.datadir,f"{args.modelname}_model_{args.featureversion}.pkl")
-    with open(pkl_filename, 'wb') as f:
-        pickle.dump(lgbm_model, f)
-        print(f"file dumped into {pkl_filename} .... ")
 
+    # Save to file in the current working directory
+    #pkl_filename = os.path.join(args.datadir,f"{args.modelname}_model_{args.featureversion}.pkl")
+   # with open(pkl_filename, 'wb') as f:
+    #    pickle.dump(lgbm_model, f)
+    print(f"file dumped into model.txt .... ")
+    lgbm_model.save_model(os.path.join(args.datadir, f"model_{args.featureversion}.txt"))
+
+    print('Plotting feature importances...')
+    ax = lgb.plot_importance(lgbm_model, max_num_features=10)
+    plt.savefig(f'lgbm_importances-0{args.featureversion}.png')
+
+    # run
+    os.system(f"xdg-open lgbm_importances-0{args.featureversion}.png")
 
 if __name__ == "__main__":
     main()

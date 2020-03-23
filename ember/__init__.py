@@ -128,7 +128,7 @@ def read_metadata_record(raw_features_string):
     return {k: all_data[k] for k in all_data.keys() & metadata_keys}
 
 
-def create_metadata(data_dir):
+def create_metadata(data_dir, feature_version=2):
     """
     Write metadata to a csv file and return its dataframe
     """
@@ -144,8 +144,9 @@ def create_metadata(data_dir):
 
     all_metadata_keys = ["sha256", "appeared", "subset", "label", "avclass"]
     ordered_metadata_keys = [k for k in all_metadata_keys if k in train_records[0].keys()]
+    
     metadf = pd.DataFrame(train_records + test_records)[ordered_metadata_keys]
-    metadf.to_csv(os.path.join(data_dir, "metadata.csv"))
+    metadf.to_csv(os.path.join(data_dir, f"metadata_{feature_version}.csv"))
     return metadf
 
 
@@ -200,35 +201,39 @@ def train_model(data_dir, params={}, feature_version=2):
     """
     Train the LightGBM model from the EMBER dataset from the vectorized features
     """
-    # update params
-    params.update({"application": "binary"})
 
     # Read data
     X_train, y_train = read_vectorized_features(data_dir, "train", feature_version)
 
+    # update params
+    #params.update({"application": "binary"})
+    num_train, num_feature = X_train.shape
+    feature_name = ["num_"+str(i) for i in range(num_feature)]
+    
     # Filter unlabeled data
     train_rows = (y_train != -1)
 
     # Train
-    #print("train ..... ")
-    #lgbm_dataset = lgb.Dataset(X_train[train_rows], y_train[train_rows])
-    #print("train 2 ...")
-    #lgbm_model = lgb.train(params, lgbm_dataset)
+    print("Training ..... ")
+    lgbm_dataset = lgb.Dataset(X_train[train_rows], y_train[train_rows])
+    lgbm_model = lgb.train(params, lgbm_dataset, feature_name=feature_name)
 
-    samples_nbr = len(y_train[train_rows])
-    print("number of samples to be trained with partial_fit : ", samples_nbr)
-    print(y_train[train_rows][0:0+10])
+    #samples_nbr = len(y_train[train_rows])
+    #print("number of samples to be trained with partial_fit : ", samples_nbr)
+    #print(y_train[train_rows][0:0+10])
 
-    estimator = SGDRegressor()
-    pas = 10_000
-    for i in range(0, samples_nbr, pas):
-        estimator.partial_fit(X_train[train_rows][i:i+pas], y_train[train_rows][i:i+pas]) #, classes=[0.0, 1.0])
-        print(f"partial fittting {i}--{i+pas}... ")
+    # estimator = SGDRegressor()
+    # pas = 10_000
+    # for i in range(0, samples_nbr, pas):
+    #     estimator.partial_fit(X_train[train_rows][i:i+pas], y_train[train_rows][i:i+pas]) #, classes=[0.0, 1.0])
+    #     print(f"partial fittting {i}--{i+pas}... ")
+    #estimator = Lasso()
+    #estimator.fit(X_train[train_rows], y_train[train_rows])
 
     # print( len(X_train[train_rows]) ) # 790657
     # print( set(y_train[train_rows]) ) # 0.0 et 1.0 
 
-    return estimator
+    return lgbm_model
 
 
 def predict_sample(lgbm_model, file_data, feature_version=2):

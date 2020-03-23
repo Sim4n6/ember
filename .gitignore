@@ -1,2 +1,7 @@
 ember_dataset_2018_2.tar.bz2
 .vscode/
+ember_dataset_2018_2.tar
+ember2018
+build/
+dist/
+ember.egg-info/

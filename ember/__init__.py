@@ -12,6 +12,7 @@ from sklearn.model_selection import GridSearchCV
 from sklearn.model_selection import TimeSeriesSplit
 from sklearn.metrics import (roc_auc_score, make_scorer)
 
+from sklearn.linear_model import SGDClassifier, Lasso, SGDRegressor
 
 def raw_feature_iterator(file_paths):
     """
@@ -68,8 +69,9 @@ def create_vectorized_features(data_dir, feature_version=2):
     extractor = PEFeatureExtractor(feature_version)
 
     print("Vectorizing training set")
-    X_path = os.path.join(data_dir, "X_train.dat")
-    y_path = os.path.join(data_dir, "y_train.dat")
+    X_path = os.path.join(data_dir, f"X_train_{feature_version}.dat")
+    y_path = os.path.join(data_dir, f"y_train_{feature_version}.dat")
+    # FIXME !!!!!!!! 6 not 1 for one single jsonl file (train_features_0.jsonl)
     raw_feature_paths = [os.path.join(data_dir, "train_features_{}.jsonl".format(i)) for i in range(6)]
     nrows = sum([1 for fp in raw_feature_paths for line in open(fp)])
     vectorize_subset(X_path, y_path, raw_feature_paths, extractor, nrows)
@@ -97,8 +99,8 @@ def read_vectorized_features(data_dir, subset=None, feature_version=2):
     y_test = None
 
     if subset is None or subset == "train":
-        X_train_path = os.path.join(data_dir, "X_train.dat")
-        y_train_path = os.path.join(data_dir, "y_train.dat")
+        X_train_path = os.path.join(data_dir, f"X_train_{feature_version}.dat")
+        y_train_path = os.path.join(data_dir, f"y_train_{feature_version}.dat")
         y_train = np.memmap(y_train_path, dtype=np.float32, mode="r")
         N = y_train.shape[0]
         X_train = np.memmap(X_train_path, dtype=np.float32, mode="r", shape=(N, ndim))
@@ -208,10 +210,25 @@ def train_model(data_dir, params={}, feature_version=2):
     train_rows = (y_train != -1)
 
     # Train
-    lgbm_dataset = lgb.Dataset(X_train[train_rows], y_train[train_rows])
-    lgbm_model = lgb.train(params, lgbm_dataset)
+    #print("train ..... ")
+    #lgbm_dataset = lgb.Dataset(X_train[train_rows], y_train[train_rows])
+    #print("train 2 ...")
+    #lgbm_model = lgb.train(params, lgbm_dataset)
 
-    return lgbm_model
+    samples_nbr = len(y_train[train_rows])
+    print("number of samples to be trained with partial_fit : ", samples_nbr)
+    print(y_train[train_rows][0:0+10])
+
+    estimator = SGDRegressor()
+    pas = 10_000
+    for i in range(0, samples_nbr, pas):
+        estimator.partial_fit(X_train[train_rows][i:i+pas], y_train[train_rows][i:i+pas]) #, classes=[0.0, 1.0])
+        print(f"partial fittting {i}--{i+pas}... ")
+
+    # print( len(X_train[train_rows]) ) # 790657
+    # print( set(y_train[train_rows]) ) # 0.0 et 1.0 
+
+    return estimator
 
 
 def predict_sample(lgbm_model, file_data, feature_version=2):

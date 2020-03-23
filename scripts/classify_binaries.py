@@ -4,6 +4,7 @@ import os
 import ember
 import argparse
 import lightgbm as lgb
+import pickle
 
 
 def main():
@@ -17,20 +18,19 @@ def main():
 
     if not os.path.exists(args.modelpath):
         parser.error("ember model {} does not exist".format(args.modelpath))
-    lgbm_model = lgb.Booster(model_file=args.modelpath)
+    #lgbm_model = lgb.Booster(model_file=args.modelpath)
+    with open(args.modelpath, "rb") as f:
+        lgbm_model = pickle.load(f)
 
-    for binary_path in args.binaries:
-        if not os.path.exists(binary_path):
-            print("{} does not exist".format(binary_path))
-
-        file_data = open(binary_path, "rb").read()
-        score = ember.predict_sample(lgbm_model, file_data, args.featureversion)
-
-        if len(args.binaries) == 1:
-            print(score)
-
-        else:
-            print("\t".join((binary_path, str(score))))
+        for binary_path in args.binaries:
+            if not os.path.exists(binary_path):
+                print("{} does not exist".format(binary_path))
+            file_data = open(binary_path, "rb").read()
+            score = ember.predict_sample(lgbm_model, file_data, args.featureversion)
+            if len(args.binaries) == 1:
+                print(score)
+            else:
+                print("\t".join((binary_path, str(score))))
 
 
 if __name__ == "__main__":

@@ -499,6 +499,8 @@ class PEFeatureExtractor(object):
                 print(f"WARNING: EMBER feature version 2 requires lief version 0.9.0-")
                 print(f"WARNING:   lief version {lief.__version__} found instead. There may be slight inconsistencies")
                 print(f"WARNING:   in the feature calculations.")
+        elif feature_version == 3:
+            self.features = [ImportsInfo()]
         else:
             raise Exception(f"EMBER feature version must be 1 or 2. Not {feature_version}")
         self.dim = sum([fe.dim for fe in self.features])
@@ -525,23 +527,3 @@ class PEFeatureExtractor(object):
     def feature_vector(self, bytez):
         return self.process_raw_features(self.raw_features(bytez))
 
-class PEFeatureExtractor_Imports(PEFeatureExtractor):
-    
-    def __init__(self, feature_version=2):
-        self.features = [
-            ImportsInfo(),
-        ]
-        if feature_version == 1:
-            if not lief.__version__.startswith("0.8.3"):
-                print(f"WARNING: EMBER feature version 1 requires lief version 0.8.3-18d5b75")
-                print(f"WARNING:   lief version {lief.__version__} found instead. There may be slight inconsistencies")
-                print(f"WARNING:   in the feature calculations.")
-        elif feature_version == 2:
-            self.features.append(DataDirectories())
-            if not lief.__version__.startswith("0.9.0"):
-                print(f"WARNING: EMBER feature version 2 requires lief version 0.9.0-")
-                print(f"WARNING:   lief version {lief.__version__} found instead. There may be slight inconsistencies")
-                print(f"WARNING:   in the feature calculations.")
-        else:
-            raise Exception(f"EMBER feature version must be 1 or 2. Not {feature_version}")
-        self.dim = sum([fe.dim for fe in self.features])    
